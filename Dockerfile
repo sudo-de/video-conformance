@@ -16,7 +16,7 @@ COPY web/ ./
 RUN npm run build
 
 # --------------------------------------------------------------- C++ build
-FROM alpine:3.20 AS build
+FROM alpine:3.24 AS build
 RUN apk add --no-cache g++ musl-dev
 WORKDIR /src
 COPY mp4probe.hpp mp4check.cpp mp4web.cpp ./
@@ -24,7 +24,7 @@ RUN g++ -std=c++17 -O2 -Wall -o mp4check mp4check.cpp \
  && g++ -std=c++17 -O2 -Wall -pthread -o mp4web mp4web.cpp
 
 # ----------------------------------------------------------------- runtime
-FROM alpine:3.20
+FROM alpine:3.24
 # ffmpeg carries libx264/libvpx; libstdc++ is needed by the C++ binaries
 RUN apk add --no-cache ffmpeg libstdc++ \
  && addgroup -S app && adduser -S -G app app
