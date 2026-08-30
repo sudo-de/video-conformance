@@ -1,0 +1,20 @@
+# build outputs and local state — never ship these into the image
+.git
+.github
+.cache
+.vscode
+.mp4web
+data
+web/node_modules
+web/dist
+mp4check
+mp4web
+compile_commands.json
+tests
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.o
+.DS_Store

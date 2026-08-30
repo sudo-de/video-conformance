@@ -1,0 +1,4 @@
+# Fallback flags for any file clangd opens without a compile_commands.json entry
+# (e.g. mp4probe.hpp on its own). Appended to whatever the database provides.
+CompileFlags:
+  Add: [-std=c++17]

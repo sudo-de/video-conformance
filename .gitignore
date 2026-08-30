@@ -1,0 +1,26 @@
+# build outputs
+mp4check
+mp4web
+web/dist
+*.o
+
+# dependencies
+web/node_modules
+
+# runtime state: uploads, encoded output, docker volume
+.mp4web/
+data/
+fixed/
+
+# editor / tooling
+.cache/
+compile_commands.json
+.DS_Store
+
+# media — reference videos are not source
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.avi

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpp:
+    name: C++ (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+          else
+            brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          fi
+          ffmpeg -version | head -1
+
+      - name: Build
+        run: make
+
+      - name: Warnings must stay at zero
+        run: |
+          rm -f mp4check mp4web
+          make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" 2>&1 | tee build.log
+          ! grep -qE 'warning:' build.log
+
+      - name: Smoke tests
+        run: ./tests/smoke.sh
+
+      - name: API end-to-end
+        shell: bash
+        run: |
+          ffmpeg -hide_banner -v error -f lavfi -i testsrc=size=320x240:rate=25:duration=2 \
+                 -f lavfi -i "sine=frequency=440:duration=2" \
+                 -c:v libx265 -tag:v hvc1 -c:a aac -ar 44100 -ac 1 /tmp/in.mp4
+          mkdir -p web/dist && echo '<!doctype html><title>t</title>' > web/dist/index.html
+          ./mp4web 8787 --dist web/dist &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:8787/api/jobs >/dev/null && break; sleep 0.5; done
+          curl -sf -F "file=@/tmp/in.mp4" http://127.0.0.1:8787/api/upload
+          for i in $(seq 1 60); do
+            s=$(curl -s http://127.0.0.1:8787/api/jobs | grep -o '"status":"[a-z]*"' | head -1)
+            [ "$s" = '"status":"done"' ] && break
+            [ "$s" = '"status":"failed"' ] && { echo "job failed"; exit 1; }
+            sleep 1
+          done
+          curl -sf -o /tmp/out.mp4 http://127.0.0.1:8787/api/download/1
+          # the fixed file must satisfy the spec the whole project exists to enforce
+          ./mp4check --no-color /tmp/out.mp4
+          ./mp4check --csv /tmp/out.mp4 | grep -q ',PASS,' || { echo "output not conformant"; exit 1; }
+
+  web:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc -b --noEmit
+      - name: Lint
+        run: npx oxlint src
+        continue-on-error: true
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: mp4web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Container smoke test
+        run: |
+          docker run -d --name t -p 8787:8787 mp4web:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/jobs >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/api/jobs
+          docker exec t mp4check --help 2>&1 | head -2 || true
+          docker rm -f t

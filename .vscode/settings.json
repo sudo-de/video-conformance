@@ -1,0 +1,8 @@
+{
+  // clangd locates compile_commands.json by walking up from the source file —
+  // do NOT pass --compile-commands-dir=${workspaceFolder}; VS Code does not
+  // expand that variable here and clangd then silently loses the database.
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "C_Cpp.default.cppStandard": "c++17",
+  "files.associations": { "*.hpp": "cpp" }
+}

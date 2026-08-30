@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Mac",
+      "compilerPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "macos-clang-arm64",
+      "compileCommands": "${workspaceFolder}/compile_commands.json",
+      "includePath": ["${workspaceFolder}/**"]
+    }
+  ]
+}

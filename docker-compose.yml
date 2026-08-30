@@ -1,0 +1,20 @@
+# docker compose up --build
+services:
+  mp4web:
+    build: .
+    image: mp4web:local
+    ports:
+      - "8787:8787"
+    volumes:
+      # uploads + encoded output survive container restarts
+      - ./data:/app/.mp4web
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    # transcoding is CPU-bound; the server already caps concurrent encodes at
+    # cores/4, so give the container enough cores for that to mean something
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 2g
